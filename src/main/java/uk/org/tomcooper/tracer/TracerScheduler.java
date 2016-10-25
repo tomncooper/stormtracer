@@ -3,9 +3,9 @@ package uk.org.tomcooper.tracer;
 import com.google.common.collect.Sets;
 
 import org.apache.storm.scheduler.*;
-import org.apache.storm.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.org.tomcooper.tracer.rpc.TracerConnection;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -20,23 +20,27 @@ import java.util.Map.Entry;
  */
 public class TracerScheduler implements IScheduler {
 
-    /**
-     * The address of the tracer host including port number
+    private static final Logger LOG = LoggerFactory.getLogger(TracerScheduler.class);
+
+     /**
+     * The wrapper class for the RPC connetion to the Tracer scaling service
      */
-    private String tracerHost;
+    private TracerConnection tc;
 
     /**
      * Method for preparing the Tracer Scheduler. This sets up the connection to the tracer service.
      *
      * @param conf - Map containing the Storm Cluster configuration from the $STORM_HOME/conf/storm.yaml file of the Nimbus
-     *             node. This should contain the tracer host address.
+     *             node. This should contain the tracer host address and the port.
      */
     @Override
     public void prepare(Map conf) {
-        tracerHost = (String) conf.get("tracerHost");
-    }
 
-    private static final Logger LOG = LoggerFactory.getLogger(EvenScheduler.class);
+        String tracerHost = (String) conf.get("tracerHost");
+        int tracerPort = Integer.valueOf((String) conf.get("tracerPort"));
+
+        tc = new TracerConnection(tracerHost, tracerPort, LOG);
+    }
 
     private static List<WorkerSlot> sortSlots(List<WorkerSlot> availableSlots) {
         //For example, we have a three nodes(supervisor1, supervisor2, supervisor3) cluster:
@@ -194,23 +198,45 @@ public class TracerScheduler implements IScheduler {
         return reassignment;
     }
 
-    public static void scheduleTopologiesEvenly(Topologies topologies, Cluster cluster) {
+    public Map<String, Map<WorkerSlot, List<ExecutorDetails>>> scheduleTopologiesEvenly(Topologies topologies, Cluster cluster) {
+
         List<TopologyDetails> needsSchedulingTopologies = cluster.needsSchedulingTopologies(topologies);
+
+        Map<String, Map<WorkerSlot, List<ExecutorDetails>>> topologyAssignments = new HashMap<>();
+
         for (TopologyDetails topology : needsSchedulingTopologies) {
-            String topologyId = topology.getId();
             Map<ExecutorDetails, WorkerSlot> newAssignment = scheduleTopology(topology, cluster);
             Map<WorkerSlot, List<ExecutorDetails>> nodePortToExecutors = reverseMap(newAssignment);
-
-            for (Map.Entry<WorkerSlot, List<ExecutorDetails>> entry : nodePortToExecutors.entrySet()) {
-                WorkerSlot nodePort = entry.getKey();
-                List<ExecutorDetails> executors = entry.getValue();
-                cluster.assign(nodePort, topologyId, executors);
-            }
+            topologyAssignments.put(topology.getId(), nodePortToExecutors);
         }
+
+        return topologyAssignments;
+
     }
 
     @Override
     public void schedule(Topologies topologies, Cluster cluster) {
-        scheduleTopologiesEvenly(topologies, cluster);
+
+        LOG.info("Schedule method called");
+
+        Map<String, Map<WorkerSlot, List<ExecutorDetails>>> topologyAssignments = scheduleTopologiesEvenly(topologies, cluster);
+
+        boolean go = tc.verifyPhysicalPlan(topologyAssignments);
+
+        if(go) {
+
+            LOG.info("Tracer service approved the new cluster arrangement");
+
+            for (String tid : topologyAssignments.keySet()) {
+                for (Map.Entry<WorkerSlot, List<ExecutorDetails>> entry : topologyAssignments.get(tid).entrySet()) {
+                    WorkerSlot nodePort = entry.getKey();
+                    List<ExecutorDetails> executors = entry.getValue();
+                    cluster.assign(nodePort, tid, executors);
+                }
+            }
+
+        } else {
+            LOG.warn("Tracer service rejected the new cluster arrangement");
+        }
     }
 }

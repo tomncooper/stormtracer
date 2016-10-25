@@ -1,0 +1,33 @@
+syntax = "proto3";
+option java_package = "uk.org.tomcooper.tracer.rpc";
+option java_multiple_files = true;
+
+message Executor{
+    int32 start = 1;
+    int32 end = 2;
+}
+
+message WorkerProcess {
+    string nodeID = 1;
+    int32 port = 2;
+    repeated Executor executors = 3;
+}
+
+message Topology {
+    string id = 1;
+    repeated WorkerProcess workerProcesses = 2;
+}
+
+message PhysicalPlan {
+    map<string, Topology> topologies = 1;
+}
+
+message TracerReply{
+    bool go = 1;
+    map<string, double> predictedLatencies = 2;
+    map<string, double> predictedThroughput = 3;
+}
+
+service PlanChecker {
+    rpc VerifyPhysicalPlan(PhysicalPlan) returns (TracerReply) {}
+}
