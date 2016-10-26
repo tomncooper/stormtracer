@@ -1,4 +1,4 @@
-package uk.org.tomcooper.tracer;
+package uk.org.tomcooper.tracer.scheduler;
 
 import com.google.common.collect.Sets;
 
@@ -13,14 +13,14 @@ import java.util.Map.Entry;
 /**
  * @author Thomas Cooper
  * @date 19/10/16
- * <p>
+ *
  * This scheduler implementation is based on the simple round robin Default Scheduler in Storm. However, when it creates
  * a new physical plan for the executors on the cluster it will first send this to the Tracer service which will model
  * weather this new plan will meet the performance requirements for each topology before it is deployed to the cluster.
  */
-public class TracerScheduler implements IScheduler {
+public class EvenScheduler implements IScheduler {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TracerScheduler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EvenScheduler.class);
 
      /**
      * The wrapper class for the RPC connetion to the Tracer scaling service

@@ -1,4 +1,4 @@
-package uk.org.tomcooper.tracer;
+package uk.org.tomcooper.tracer.metrics;
 
 import org.apache.storm.metric.api.IMetric;
 

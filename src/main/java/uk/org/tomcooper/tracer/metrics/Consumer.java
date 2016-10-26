@@ -1,4 +1,4 @@
-package uk.org.tomcooper.tracer;
+package uk.org.tomcooper.tracer.metrics;
 
 import org.apache.storm.metric.api.IMetricsConsumer;
 import org.apache.storm.task.IErrorReporter;
@@ -7,6 +7,7 @@ import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
+import uk.org.tomcooper.tracer.metrics.TransferTimeMetric;
 
 import java.util.Collection;
 import java.util.Map;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  *
  * Forwards all metrics (of interest to the tracer modelling system) to an InfluxDB instance.
  */
-public class TracerConsumer implements IMetricsConsumer {
+public class Consumer implements IMetricsConsumer {
 
     /** InfluxDB client instance for connection to the time series database */
     private transient InfluxDB influxDB;
@@ -52,7 +53,7 @@ public class TracerConsumer implements IMetricsConsumer {
      * This is an implementation of the {@link org.apache.storm.metric.api.IMetricsConsumer#handleDataPoints(TaskInfo, Collection)} method.
      *
      * It will unpack and forward all relevant metrics to an influxDB database. It has logic for both storm standard metrics
-     * and the custom metrics required by the tracer system (such as {@link uk.org.tomcooper.tracer.TransferTimeMetric}).
+     * and the custom metrics required by the tracer system (such as {@link TransferTimeMetric}).
      *
      * @param taskInfo The taskInfo instance containing details of the task that produced this metric.
      * @param dataPoints The collection of metrics measurments provided by Storm.

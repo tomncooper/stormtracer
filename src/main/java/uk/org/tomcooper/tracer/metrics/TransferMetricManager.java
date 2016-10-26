@@ -1,4 +1,4 @@
-package uk.org.tomcooper.tracer;
+package uk.org.tomcooper.tracer.metrics;
 
 import org.apache.storm.generated.GlobalStreamId;
 import org.apache.storm.task.TopologyContext;
@@ -16,7 +16,7 @@ import java.util.Map;
  * @version 0.2
  * @date 22/09/16
  */
-public class TracerMetricManager {
+public class TransferMetricManager {
 
     /**
      * Map containing the TransferTimeMetrics for each incoming stream to the component creating this manager object
@@ -45,7 +45,7 @@ public class TracerMetricManager {
      * @param topoConfig  A Map, supplied to a bolt's prepare method, containing the configuration for this Storm topology.
      * @param topoContext A {@link org.apache.storm.task.TopologyContext} object for the component creating this latencies manager.
      */
-    public TracerMetricManager(Map topoConfig, TopologyContext topoContext) {
+    public TransferMetricManager(Map topoConfig, TopologyContext topoContext) {
 
         latencies = new HashMap<GlobalStreamId, TransferTimeMetric>();
         counts = new HashMap<GlobalStreamId, TransferCountMetric>();
