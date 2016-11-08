@@ -1,6 +1,5 @@
 package uk.org.tomcooper.tracer.rpc;
 
-import clojure.lang.IFn;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -8,7 +7,6 @@ import org.apache.storm.scheduler.ExecutorDetails;
 import org.apache.storm.scheduler.WorkerSlot;
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -72,7 +70,9 @@ public class TracerConnection {
             TracerReply reply = blockingStub.verifyPhysicalPlan(plan);
             approved = reply.getGo();
         } catch (StatusRuntimeException e){
-            LOG.warn("Connection to Tracer RPC server failed:\n" + e.getStatus());
+            String error = "Connection to Tracer RPC server failed:\n" + e.getStatus();
+            System.err.println(error);
+            LOG.warn(error);
         }
         return approved;
     }
