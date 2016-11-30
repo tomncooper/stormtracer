@@ -7,7 +7,6 @@ import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
-import uk.org.tomcooper.tracer.metrics.TransferTimeMetric;
 
 import java.util.Collection;
 import java.util.Map;
@@ -32,12 +31,14 @@ public class Consumer implements IMetricsConsumer {
     /**
      * Method for preparing the Metric Consumer bolt. This sets up the InfluxDB connection client.
      *
-     * @param stormConf Storm configuration map. This should contain the following keys: tracerdb.host (in the form http://hostname:port), tracerdb.name, tracerdb.user, tracerdb.password.
+     * @param stormConf Storm configuration map. This should contain the following keys: tracerdb.host
+     *                  (in the form http://hostname:port), tracerdb.name, tracerdb.user, tracerdb.password.
      * @param registrationArgument Optional arguments for the Metrics Bolt
      * @param context The topology context object.
      * @param errorReporter The error reporting object.
      */
-    public void prepare(Map stormConf, Object registrationArgument, TopologyContext context, IErrorReporter errorReporter) {
+    public void prepare(Map stormConf, Object registrationArgument,
+                        TopologyContext context, IErrorReporter errorReporter) {
 
         String dbHost = (String) stormConf.get("tracerdb.host");
         dbName = (String) stormConf.get("tracerdb.name");
@@ -50,10 +51,11 @@ public class Consumer implements IMetricsConsumer {
     }
 
     /**
-     * This is an implementation of the {@link org.apache.storm.metric.api.IMetricsConsumer#handleDataPoints(TaskInfo, Collection)} method.
+     * This is an implementation of the
+     * {@link org.apache.storm.metric.api.IMetricsConsumer#handleDataPoints(TaskInfo, Collection)} method.
      *
-     * It will unpack and forward all relevant metrics to an influxDB database. It has logic for both storm standard metrics
-     * and the custom metrics required by the tracer system (such as {@link TransferTimeMetric}).
+     * It will unpack and forward all relevant metrics to an influxDB database. It has logic for both storm standard
+     * metrics and the custom metrics required by the tracer system (such as {@link TransferTimeMetric}).
      *
      * @param taskInfo The taskInfo instance containing details of the task that produced this metric.
      * @param dataPoints The collection of metrics measurments provided by Storm.
@@ -105,7 +107,8 @@ public class Consumer implements IMetricsConsumer {
                             }
 
                         } else if(p.name.equals("__sendqueue") | p.name.equals("__receive")){
-                            //The sendqueue and receive metrics contain a list of measures for the queues of each component
+                            //The sendqueue and receive metrics contain a list of measures for the queues of
+                            // each component
 
                            Map<String, Object> datamap = (Map<String, Object>) dataMap;
 
@@ -123,9 +126,12 @@ public class Consumer implements IMetricsConsumer {
 
                         } else if(p.name.contains("Transfer-")){
 
-                            //The key for this metric is a string of the form Transfer-SourceComponent-StreamID-DestinationComponent
-                            //The value (p.value) is a map from an integer taskID to a Double or Integer representing the average transfer latency or count
-                            //Convert dataMap to the correct Map type.
+                            //The key for this metric is a string of the form:
+                            // Transfer-SourceComponent-StreamID-DestinationComponent
+                            // The value (p.value) is a map from an integer taskID to a Double or Integer representing
+                            // the average transfer latency or count.
+
+                            // Convert dataMap to the correct Map type.
                             Map<Integer, Object> datamap = (Map<Integer, Object>) dataMap;
 
                             //Loop over all the tasks in this metric and create a point of each
