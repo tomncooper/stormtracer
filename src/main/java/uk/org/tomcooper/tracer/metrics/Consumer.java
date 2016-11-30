@@ -72,7 +72,6 @@ public class Consumer implements IMetricsConsumer {
                     .tag("taskID", String.valueOf(taskInfo.srcTaskId))
                     .tag("component", taskInfo.srcComponentId)
                     .tag("topology", topologyID)
-                    .retentionPolicy("default")
                     .consistency(InfluxDB.ConsistencyLevel.ONE)
                     .build();
 
