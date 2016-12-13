@@ -1,5 +1,6 @@
 package uk.org.tomcooper.tracer.metrics;
 
+import org.apache.storm.metric.SystemBolt;
 import org.apache.storm.metric.api.IMetric;
 
 import java.util.ArrayList;
@@ -61,8 +62,9 @@ public class TransferTimeMetric implements IMetric {
                 sum += latency;
             }
 
-            Double averageLatency = Double.valueOf(sum) / Double.valueOf(latencies.size());
+            Double averageLatency = Double.valueOf(sum) / Double.valueOf(e.getValue().size());
 
+            //This is just in case desynced clocks in seperate machines lead to negative latency values.
             if (averageLatency < 0.0) {
                 averageLatency = 0.0;
             }

@@ -99,6 +99,8 @@ public class TransferMetricManager {
      */
     public void addTransfer(Tuple tuple, long latency) {
         latencies.get(tuple.getSourceGlobalStreamId()).addLatency(tuple.getSourceTask(), latency);
+        //TODO This assumes that every tuple will report a transfer. This needs to be edited to take the sampling
+        //rate into consideration
         counts.get(tuple.getSourceGlobalStreamId()).addCount(tuple.getSourceTask());
     }
 

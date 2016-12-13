@@ -126,7 +126,7 @@ public class Consumer implements IMetricsConsumer {
                         } else if(p.name.contains("Transfer-")){
 
                             //The key for this metric is a string of the form:
-                            // Transfer-SourceComponent-StreamID-DestinationComponent
+                            // Transfer-MetricType-SourceComponent-StreamID-DestinationComponent
                             // The value (p.value) is a map from an integer taskID to a Double or Integer representing
                             // the average transfer latency or count.
 
