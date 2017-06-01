@@ -13,8 +13,8 @@ import java.util.Map;
  * can be tracked.
  *
  * @author Thomas Cooper
- * @version 0.2
- * @date 22/09/16
+ * @version 0.3
+ * @date 01/06/17
  */
 public class TransferMetricManager {
 
@@ -32,7 +32,6 @@ public class TransferMetricManager {
      * The length, in seconds, between the calls to the getValueAndReset() method for each of the latencies stored in this manager
      **/
     private int metricWindow;
-
 
     /**
      * Constructor for the Transfer Metric Manager class. This will take the {@link org.apache.storm.task.TopologyContext} object provided by a Bolt's
@@ -99,8 +98,7 @@ public class TransferMetricManager {
      */
     public void addTransfer(Tuple tuple, long latency) {
         latencies.get(tuple.getSourceGlobalStreamId()).addLatency(tuple.getSourceTask(), latency);
-        //TODO This assumes that every tuple will report a transfer. This needs to be edited to take the sampling
-        //rate into consideration
+        //TODO: This assumes that every tuple will report a transfer. This needs to be edited to take the sampling rate into consideration
         counts.get(tuple.getSourceGlobalStreamId()).addCount(tuple.getSourceTask());
     }
 

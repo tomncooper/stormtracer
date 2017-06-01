@@ -9,13 +9,14 @@ import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author Thomas Cooper
- * @version 0.2
- * @date 2016/09/19
+ * @version 0.3
+ * @date 2016/06/01
  *
  * Forwards all metrics (of interest to the tracer modelling system) to an InfluxDB instance.
  */
@@ -58,7 +59,8 @@ public class Consumer implements IMetricsConsumer {
      * metrics and the custom metrics required by the tracer system (such as {@link TransferTimeMetric}).
      *
      * @param taskInfo The taskInfo instance containing details of the task that produced this metric.
-     * @param dataPoints The collection of metrics measurments provided by Storm.
+     * @param dataPoints The collection of metrics measurements provided by
+     *                   Storm.
      */
     public void handleDataPoints(TaskInfo taskInfo, Collection<DataPoint> dataPoints) {
 
@@ -133,13 +135,40 @@ public class Consumer implements IMetricsConsumer {
                             // Convert dataMap to the correct Map type.
                             Map<Integer, Object> datamap = (Map<Integer, Object>) dataMap;
 
+                            // Extract the tag information for this
+                            // measurement
+                            Map<String, String> tags = extractTags(p.name);
+
                             //Loop over all the tasks in this metric and create a point of each
                             for(Map.Entry<Integer, Object> e : datamap.entrySet()) {
 
-                                Point point = Point.measurement(p.name)
+                                String sourceTask = String.valueOf(e.getKey());
+                                Number value;
+
+                                if(tags.get("measurement").equals
+                                        ("Transfer-Latency")){
+                                    value = (Double) e.getValue();
+                                    if(Double.isNaN((Double) value)){
+                                        break;
+                                    }
+                                } else if(tags.get("measurement").equals
+                                        ("Transfer-Count")){
+                                    value = (Integer) e.getValue();
+                                } else {
+                                    throw new RuntimeException("Transfer " +
+                                            "metric " + tags.get("measurement")
+                                            + " is not supported.");
+                                }
+
+                                Point point = Point.measurement(
+                                        tags.get("measurement"))
                                         .time(timestamp, TimeUnit.SECONDS)
-                                        .tag("source-task", String.valueOf(e.getKey()))
-                                        .addField("value", (Number) e.getValue())
+                                        .tag("source-task", sourceTask)
+                                        .tag("source-component",
+                                                tags.get("source-component"))
+                                        .tag("stream",
+                                                tags.get("stream"))
+                                        .addField("value", value)
                                         .build();
 
                                 //Add the point to this tasks batch
@@ -175,10 +204,25 @@ public class Consumer implements IMetricsConsumer {
                 n.printStackTrace();
             } catch (Exception e) {
                 System.out.println("#######  Sending got a another exception ########");
+
+                for(Point point : batchPoints.getPoints())
+                    System.out.println(point);
+
                 e.printStackTrace();
             }
 
         }
+    }
+
+    private Map<String, String> extractTags(String transferName){
+       String[] tokens = transferName.split("-");
+       Map <String, String> tags = new HashMap<String, String>();
+
+       tags.put("measurement", "Transfer-" + tokens[1]);
+       tags.put("source-component", tokens[2]);
+       tags.put("stream", tokens[3]);
+
+       return tags;
     }
 
     public void cleanup() {
