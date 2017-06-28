@@ -7,6 +7,8 @@ import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.BatchPoints;
 import org.influxdb.dto.Point;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,6 +30,8 @@ public class Consumer implements IMetricsConsumer {
     private transient String dbName;
     /** The unique name storm has given to the topology this consumer is monitoring */
     private transient String topologyID;
+    /** The Logger instance for this metric consumer */
+    private static final Logger LOG = LoggerFactory.getLogger(Consumer.class);
 
     /**
      * Method for preparing the Metric Consumer bolt. This sets up the InfluxDB connection client.
@@ -41,6 +45,8 @@ public class Consumer implements IMetricsConsumer {
     public void prepare(Map stormConf, Object registrationArgument,
                         TopologyContext context, IErrorReporter errorReporter) {
 
+        LOG.info("Setting up Influx Connection");
+
         String dbHost = (String) stormConf.get("tracerdb.host");
         dbName = (String) stormConf.get("tracerdb.name");
         String dbUser = (String) stormConf.get("tracerdb.user");
@@ -49,6 +55,8 @@ public class Consumer implements IMetricsConsumer {
         topologyID = (String) stormConf.get("storm.id");
 
         influxDB = InfluxDBFactory.connect(dbHost, dbUser, dbPwd);
+
+        LOG.info("Influx connection object created");
     }
 
     /**
@@ -74,7 +82,8 @@ public class Consumer implements IMetricsConsumer {
                     .tag("taskID", String.valueOf(taskInfo.srcTaskId))
                     .tag("component", taskInfo.srcComponentId)
                     .tag("topology", topologyID)
-                    .consistency(InfluxDB.ConsistencyLevel.ONE)
+                    .consistency(InfluxDB.ConsistencyLevel.ANY)
+                    .retentionPolicy("autogen")
                     .build();
 
             long timestamp = taskInfo.timestamp;
@@ -87,6 +96,9 @@ public class Consumer implements IMetricsConsumer {
 
                     //Some of the metrics maps can be empty so check they have values first
                     if(!dataMap.isEmpty()){
+
+                        LOG.debug("Preparing batch points for metric: " +
+                                  p.name);
 
                         if(p.name.contains("count") | p.name.contains("latency")){
                             //The count and latency metrics contain keys for each stream
@@ -181,6 +193,8 @@ public class Consumer implements IMetricsConsumer {
 
                     } else {
                         //Empty Map value - Which is odd?
+                        LOG.debug("Empty map value during metric point " +
+                                  "handeling");
                     }
 
                 } else if(p.value instanceof Number) {
@@ -199,21 +213,33 @@ public class Consumer implements IMetricsConsumer {
             try {
                 //Write the batch of points for this tasks metrics to InfluxDB.
                 influxDB.write(batchPoints);
+                LOG.info(batchPoints.getPoints().size() + " metrics sent to " +
+                        "InfluxDB with timestamp: " + timestamp);
             } catch (NullPointerException n) {
-                System.out.println("#######  Sending got a NullPointer Exception! ########");
+                LOG.warn("Sending to InfluxDB raised a NullPointer Exception");
                 n.printStackTrace();
             } catch (Exception e) {
-                System.out.println("#######  Sending got a another exception ########");
-
+                LOG.warn("Sending to InfluxDB raised a generic exception");
                 for(Point point : batchPoints.getPoints())
-                    System.out.println(point);
-
+                    System.err.println(point);
                 e.printStackTrace();
             }
 
         }
     }
 
+    /**
+    * This will extract the measurement name, source component and stream
+     * from the supplied transfer metric name.
+     *
+     * @param transferName The metric name to extract information from. This
+     *                    will be in the form:
+     *                     Transfer-MetricType-SourceComponent-StreamID
+     *                     -DestinationComponent.
+     *
+     * @return A Map linking the measurement name, source-component and
+     * stream to the respective values.
+    */
     private Map<String, String> extractTags(String transferName){
        String[] tokens = transferName.split("-");
        Map <String, String> tags = new HashMap<String, String>();
@@ -226,5 +252,6 @@ public class Consumer implements IMetricsConsumer {
     }
 
     public void cleanup() {
+        influxDB.close();
     }
 }
