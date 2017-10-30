@@ -1,7 +1,16 @@
+# Maven build
 target/
+
+# Intellij
 .idea/
 *.iml
 
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Java compiled classes
 *.class
 
 # Mobile Tools for Java (J2ME)
