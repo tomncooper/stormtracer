@@ -127,6 +127,8 @@ public class Consumer implements IMetricsConsumer {
                     } else if(p.name.contains("Transfer-")){
                         handle_transfer_metric(metric, timestamp, dataMap,
                                                batchPoints);
+                    } else if(p.name.contains("CPU-Latency")){
+                        System.out.println("\n########\n\nCPU Latency is a Map!\n\n#######\n");
                     } else {
                         // This is likely one of the resource metrics.
                         handle_other(metric, timestamp, dataMap, batchPoints);
@@ -140,15 +142,20 @@ public class Consumer implements IMetricsConsumer {
 
             } else if(p.value instanceof Number) {
 
-                //Some of the metrics values are simply numbers and so can just
-                // be entered directly as measurements
-                Point point = Point.measurement(
-                        metric.replaceAll("__", ""))
-                        .time(timestamp, TimeUnit.SECONDS)
-                        .addField("value", (Number) p.value)
-                        .build();
+                if(p.name.contains("CPU-Latency")) {
+                    Number latency = (Number) p.value;
+                    handle_CPU_metric(metric, timestamp, latency, batchPoints);
+                } else {
+                    //Some of the metrics values are simply numbers and so can just
+                    // be entered directly as measurements
+                    Point point = Point.measurement(
+                            metric.replaceAll("__", ""))
+                            .time(timestamp, TimeUnit.SECONDS)
+                            .addField("value", (Number) p.value)
+                            .build();
 
-                batchPoints.point(point);
+                    batchPoints.point(point);
+                }
             }
 
         }
@@ -185,7 +192,7 @@ public class Consumer implements IMetricsConsumer {
        String[] tokens = transferName.split("-");
        Map <String, String> tags = new HashMap<String, String>();
 
-       tags.put("measurement", "Transfer-" + tokens[1]);
+       tags.put("measurement", tokens[0] + "-" + tokens[1]);
        tags.put("source-component", tokens[2]);
        tags.put("stream", tokens[3]);
 
@@ -338,6 +345,44 @@ public class Consumer implements IMetricsConsumer {
             //Add the point to this tasks batch
             batchPoints.point(point);
         }
+    }
+
+    /**
+     * Handles Storm Tracer custom CPU latency metrics.
+     *
+     * @param metric The name of the metric being handled
+     * @param timestamp The timestamp to be applied to this measurement
+     * @param latency The CPU latency measurement
+     * @param batchPoints The current instance of BatchPoints that this metric
+     *                    will be added to.
+     */
+    private void handle_CPU_metric(String metric,
+                                   long timestamp,
+                                   Number latency,
+                                   BatchPoints batchPoints) {
+        // The key for this metric is a string of the form:
+        // CPU-Latency-SourceComponent-StreamID-DestinationComponent
+        // The value (p.value) is a double representing the average
+        // latency in the metric bucket period.
+
+        // Extract the tag information for this
+        // measurement
+        Map<String, String> tags = extractTags(metric);
+
+        Double value = (Double) latency;
+
+        Point point = Point.measurement(
+                tags.get("measurement"))
+                .time(timestamp, TimeUnit.SECONDS)
+                .tag("source-component",
+                        tags.get("source-component"))
+                .tag("stream",
+                        tags.get("stream"))
+                .addField("value", value)
+                .build();
+
+        //Add the point to this tasks batch
+        batchPoints.point(point);
     }
 
     /**

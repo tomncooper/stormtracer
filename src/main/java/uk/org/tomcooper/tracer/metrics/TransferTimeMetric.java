@@ -29,7 +29,7 @@ public class TransferTimeMetric implements IMetric {
      * Adds a transfer latency measurement to the latency list for the supplied taskID. If the supplied taskID does not
      * have an entry in the latencies map, one will be created.
      *
-     * @param taskID An integer for the task latency list this measurement should be added too
+     * @param taskID An integer for the source task latency list this measurement should be added too
      * @param ts A long representing a latency measurement in milliseconds
      */
     public void addLatency(Integer taskID, long ts){

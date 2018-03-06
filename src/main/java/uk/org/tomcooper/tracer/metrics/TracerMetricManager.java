@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Class for managing multiple tracer latencies objects. This is used to handle components with more than one
+ * Class for managing multiple tracer matrics. This is used to handle components with more than one
  * input source component/stream, so that the individual transfer latencies between the different tasks for each component
  * can be tracked.
  *
@@ -16,7 +16,7 @@ import java.util.Map;
  * @version 0.3
  * @date 01/06/17
  */
-public class TransferMetricManager {
+public class TracerMetricManager {
 
     /**
      * Map containing the TransferTimeMetrics for each incoming stream to the component creating this manager object
@@ -27,6 +27,11 @@ public class TransferMetricManager {
      * Map containing the TransferCountMetrics for each incoming stream to the component creating this manager object
      **/
     private transient Map<GlobalStreamId, TransferCountMetric> counts;
+
+    /**
+     * Map containing the CPUTimeMetrics for each incoming stream to the component creating this manager object
+     **/
+    private transient Map<GlobalStreamId, CPUTimeMetric> cpuLatencies;
 
     /**
      * The length, in seconds, between the calls to the getValueAndReset() method for each of the latencies stored in this manager
@@ -44,10 +49,11 @@ public class TransferMetricManager {
      * @param topoConfig  A Map, supplied to a bolt's prepare method, containing the configuration for this Storm topology.
      * @param topoContext A {@link org.apache.storm.task.TopologyContext} object for the component creating this latencies manager.
      */
-    public TransferMetricManager(Map topoConfig, TopologyContext topoContext) {
+    public TracerMetricManager(Map topoConfig, TopologyContext topoContext) {
 
         latencies = new HashMap<GlobalStreamId, TransferTimeMetric>();
         counts = new HashMap<GlobalStreamId, TransferCountMetric>();
+        cpuLatencies = new HashMap<GlobalStreamId, CPUTimeMetric>();
 
         //Set the reporting window for the latencies to be the same as the system latencies window
         Long mWin = (Long) topoConfig.get("topology.builtin.metrics.bucket.size.secs");
@@ -59,7 +65,7 @@ public class TransferMetricManager {
 
     /**
      * This private method will create metrics (to be registered with Storm) from the supplied {@link org.apache.storm.task.TopologyContext} object.
-     * The names of these latencies take the form: "Transfer-{Latency/Count}-<SourceComponent>-<Stream>-<DestinationComponent>".
+     * The names of these metrics take the form: "Transfer-{Latency/Count}-<SourceComponent>-<Stream>-<DestinationComponent>".
      *
      * @param tc A {@link org.apache.storm.task.TopologyContext} object for the component creating this latencies manager.
      */
@@ -72,20 +78,23 @@ public class TransferMetricManager {
             String metricName = gsid.get_componentId() + "-" + gsid.get_streamId() + "-" + tc.getThisComponentId();
             String ttmName = "Transfer-Latency-" + metricName;
             String tcmName = "Transfer-Count-" + metricName;
+            String cpuName = "CPU-Latency-" + metricName;
 
             //Create the transfer metric objects for this source
             TransferTimeMetric ttm = new TransferTimeMetric();
             TransferCountMetric tcm = new TransferCountMetric();
+            CPUTimeMetric cpum = new CPUTimeMetric();
 
-            //Register the transfer latencies with the topology
+            //Register the transfer and cpu metrics with the topology
             tc.registerMetric(ttmName, ttm, metricWindow);
             tc.registerMetric(tcmName, tcm, metricWindow);
+            tc.registerMetric(cpuName, cpum, metricWindow);
 
             //Add the metric instance to the manger's metric maps
             latencies.put(gsid, ttm);
             counts.put(gsid, tcm);
+            cpuLatencies.put(gsid, cpum);
         }
-
     }
 
     /**
@@ -100,6 +109,17 @@ public class TransferMetricManager {
         latencies.get(tuple.getSourceGlobalStreamId()).addLatency(tuple.getSourceTask(), latency);
         //TODO: This assumes that every tuple will report a transfer. This needs to be edited to take the sampling rate into consideration
         counts.get(tuple.getSourceGlobalStreamId()).addCount(tuple.getSourceTask());
+    }
+
+    /**
+     * Adds a CPU latency measurement for the metric objects stored in this manager.
+     * The {@link GlobalStreamId} from the supplied {@link Tuple} object is used to locate the correct metric in the manager's maps.
+     *
+     * @param tuple   The {@link Tuple} object supplied to the bolt's execute method.
+     * @param latency A measurement of the CPU execute latency in milliseconds.
+     */
+    public void addCPULatency(Tuple tuple, long latency){
+        cpuLatencies.get(tuple.getSourceGlobalStreamId()).addLatency(latency);
     }
 
 }
