@@ -14,8 +14,12 @@ public class CPULatencyTimer {
     public CPULatencyTimer(){
         mxBean = ManagementFactory.getThreadMXBean();
 
-        if (!mxBean.isThreadCpuTimeSupported()) {
+        if (!mxBean.isCurrentThreadCpuTimeSupported()) {
             throw new UnsupportedOperationException("CPU Latency measurements are not supported");
+        }
+
+        if (!mxBean.isThreadCpuTimeEnabled()) {
+        	mxBean.setThreadCpuTimeEnabled(true);
         }
     }
 
@@ -38,7 +42,7 @@ public class CPULatencyTimer {
         long nanoDuration = stopTime - startTime;
 
         // Convert the duration to milliseconds
-        return (nanoDuration / 1000L);
+        return (nanoDuration / 1000000L);
     }
 }
 
